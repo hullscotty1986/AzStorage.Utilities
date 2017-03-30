@@ -732,31 +732,45 @@ namespace AzStorage.Utilities
 
             var blobs = container.ListBlobs().ToList();
 
+            resetBlobs(blobs);
+        }
+
+        private void resetBlobs(IList<IListBlobItem> blobs)
+        {
+            
             var total = blobs.Count;
             var counter = 1;
 
             foreach (var blob in blobs)
             {
-                if (blob is CloudBlobDirectory) continue;
-
-                var cloudBlob = (CloudBlob)blob;
-
-                var extension = Path.GetExtension(cloudBlob.Uri.AbsoluteUri);
-
-                string contentType;
-                _contentTypes.TryGetValue(extension, out contentType);
-                if (string.IsNullOrEmpty(contentType)) continue;
-
-                Trace.Write($"{counter++} of {total} : {cloudBlob.Name}");
-                if (cloudBlob.Properties.ContentType == contentType)
+                
+                if (blob is CloudBlobDirectory)
                 {
-                    Trace.WriteLine($" ({cloudBlob.Properties.ContentType}) (skipped)");
-                    continue;
+                    Trace.WriteLine($"Resetting: {(blob as CloudBlobDirectory).StorageUri}");
+                    resetBlobs((blob as CloudBlobDirectory).ListBlobs().ToList());
                 }
+                else
+                {
 
-                cloudBlob.Properties.ContentType = contentType;
-                cloudBlob.SetProperties();
-                Trace.WriteLine($" ({cloudBlob.Properties.ContentType}) (reset)");
+                    var cloudBlob = (CloudBlob)blob;
+
+                    var extension = Path.GetExtension(cloudBlob.Uri.AbsoluteUri);
+
+                    string contentType;
+                    _contentTypes.TryGetValue(extension, out contentType);
+                    if (string.IsNullOrEmpty(contentType)) continue;
+
+                    Trace.Write($"{counter++} of {total} : {cloudBlob.Name}");
+                    if (cloudBlob.Properties.ContentType == contentType)
+                    {
+                        Trace.WriteLine($" ({cloudBlob.Properties.ContentType}) (skipped)");
+                        continue;
+                    }
+
+                    cloudBlob.Properties.ContentType = contentType;
+                    cloudBlob.SetProperties();
+                    Trace.WriteLine($" ({cloudBlob.Properties.ContentType}) (reset)");
+                }
             }
         }
 
